@@ -37,10 +37,18 @@ Sin variables de Supabase, guarda en localStorage del navegador actual. No hay d
 2. Ejecuta `supabase/migrations/001_readings.sql` en el editor SQL del proyecto. Activa RLS y restringe todas las operaciones al dueño del registro.
 3. Copia `.env.example` a `.env.local` y completa la URL del proyecto y su clave pública/publishable. Nunca uses una clave `service_role` en el frontend.
 4. En Authentication → URL Configuration, configura Site URL y las direcciones permitidas de redirección (por ejemplo `http://localhost:5173` y la URL HTTPS publicada).
-5. Activa el proveedor de correo y los enlaces de acceso. Configura SMTP para entrega de correos en producción.
+5. Activa el proveedor Email. El acceso principal usa correo y contraseña; el enlace por correo es opcional y requiere un servicio de correo disponible.
 6. Reinicia Vite o recompila al modificar variables de entorno.
 
 Con Supabase configurado, el inicio de sesión es obligatorio y las operaciones requieren conexión. No se mezclan ni se suben automáticamente los datos locales anteriores. Exporta esos registros antes de cambiar de modo. La integración requiere verificar el acceso de dos usuarios reales en tu proyecto para confirmar aislamiento; no hay credenciales incluidas.
+
+### Crear una cuenta con contraseña
+
+En Supabase → Authentication → Users, busca primero si el correo ya existe. Para una cuenta nueva, selecciona Add user → Create new user, introduce el correo y una contraseña y marca Auto Confirm User después de verificar que el correo pertenece a la persona. No uses Send invitation para este flujo. Una cuenta existente necesita tener contraseña y estar confirmada; no borres cuentas que tengan mediciones para recrearlas.
+
+Abre la app y pulsa Iniciar sesión con esas credenciales. El acceso por contraseña no envía correos. Las contraseñas se entregan directamente a Supabase por HTTPS y no se guardan en localStorage; Supabase conserva la sesión para las siguientes visitas. El enlace por correo sigue disponible como alternativa. Esta versión no incluye recuperación de contraseña en la interfaz.
+
+Prueba del formulario con respuestas simuladas de Supabase: después de compilar y ejecutar la vista previa en el puerto 4173, ejecuta `node scripts/check-password-login.mjs`. Comprueba credenciales incorrectas, cuenta sin confirmar, límites de intentos, acceso, recarga, cierre de sesión y ausencia de solicitudes de correo, en escritorio y móvil.
 
 ## Publicar e instalar
 

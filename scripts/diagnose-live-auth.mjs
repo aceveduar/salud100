@@ -9,6 +9,7 @@ try {
   console.log('Page:',await page.title(),new URL(page.url()).origin)
   await page.getByLabel('Correo electrónico').fill(process.argv[2])
   const responsePromise=page.waitForResponse(r=>r.url().includes('/auth/v1/otp'))
+  await page.getByRole('button',{name:'Prefiero un enlace por correo'}).click()
   await page.getByRole('button',{name:'Recibir enlace de acceso'}).click()
   const response=await responsePromise
   console.log('OTP status:',response.status(),'redirect:',new URL(response.url()).searchParams.get('redirect_to'))

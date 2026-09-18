@@ -9,6 +9,7 @@ try {
   await page.getByText('Este enlace ya fue usado o venció.',{exact:false}).waitFor()
   await page.route('**/auth/v1/otp**',route=>route.fulfill({status:429,contentType:'application/json',body:JSON.stringify({code:'over_email_send_rate_limit',msg:'email rate limit exceeded'})}))
   await page.getByLabel('Correo electrónico').fill('test@example.com')
+  await page.getByRole('button',{name:'Prefiero un enlace por correo'}).click()
   await page.getByRole('button',{name:'Recibir enlace de acceso'}).click()
   await page.getByText('Se alcanzó el límite de correos de acceso.',{exact:false}).waitFor()
   assert.equal(await page.getByRole('button',{name:'Recibir enlace de acceso'}).isEnabled(),true)

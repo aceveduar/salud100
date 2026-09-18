@@ -7,7 +7,7 @@ try {
   page.on('pageerror',error=>errors.push(error.message))
   await page.goto('http://localhost:4173',{timeout:120000})
   await page.getByRole('heading',{name:'Qué bueno tenerte aquí.'}).waitFor()
-  await page.getByRole('button',{name:'Recibir enlace de acceso'}).waitFor()
+  await page.getByRole('button',{name:'Iniciar sesión'}).waitFor()
   if(errors.length)throw new Error(errors.join('\n'))
   console.log('Supabase login screen verified; no email sent.')
 } finally {await browser.close()}
