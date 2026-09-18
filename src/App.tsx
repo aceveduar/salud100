@@ -1,3 +1,4 @@
+import { authErrorMessage, readAuthRedirectError } from './lib/auth-feedback'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Activity, ArrowDownToLine, ArrowRight, Check, ChevronRight, Clock3, Coffee, Droplet, Heart, History, LayoutDashboard, Leaf, LogOut, Pencil, Plus, Settings2, ShieldCheck, Smartphone, Sparkles, Trash2, WifiOff, X } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
@@ -11,6 +12,7 @@ const timeLabel = (date: string) => new Date(date).toLocaleTimeString('es-MX',{h
 export default function App() {
   const [session,setSession] = useState<Session|null>(null)
   const [authReady,setAuthReady] = useState(!supabase)
+  const [authError,setAuthError] = useState(readAuthRedirectError)
   const [page,setPage] = useState<Page>('home')
   const [readings,setReadings] = useState<Reading[]>([])
   const [loading,setLoading] = useState(true)
@@ -28,7 +30,7 @@ export default function App() {
   const mainRef = useRef<HTMLElement>(null)
   useEffect(()=>{
     if(!supabase) return
-    supabase.auth.getSession().then(({data,error})=>{if(error)setNotice('No pudimos recuperar tu sesión. Vuelve a iniciar sesión.');setSession(data.session);setAuthReady(true)})
+    supabase.auth.getSession().then(({data,error})=>{if(error)setAuthError(authErrorMessage(error));setSession(data.session);setAuthReady(true)}).catch(()=>{setAuthError(authErrorMessage(null));setAuthReady(true)})
     const {data:{subscription}} = supabase.auth.onAuthStateChange((_event,s)=>{setSession(s);setAuthReady(true);if(!s)setReadings([])})
     return ()=>subscription.unsubscribe()
   },[])
@@ -44,7 +46,7 @@ export default function App() {
   async function saved(reading: Reading) {setReadings(prev=>[reading,...prev.filter(r=>r.id!==reading.id)].sort((a,b)=>Date.parse(b.measured_at)-Date.parse(a.measured_at)));setEditing(null);setNotice('Medición guardada. Un pequeño paso para cuidarte.')}
   async function remove() {if(!removing)return;setDeleting(true);setDeleteError('');try{await deleteReading(removing.id);setReadings(prev=>prev.filter(r=>r.id!==removing.id));setRemoving(null);setNotice('Medición eliminada.')}catch(e){setDeleteError(e instanceof Error?e.message:'No se pudo eliminar.')}finally{setDeleting(false)}}
   if(!authReady) return <div className="loading-screen"><Droplet/> Preparando tu espacio…</div>
-  if(supabase && !session) return <AuthScreen />
+  if(supabase && !session) return <AuthScreen initialError={authError} />
   return <div className="app-shell">
     <aside className="sidebar"><a className="brand" href="#" onClick={e=>{e.preventDefault();navigate('home')}}><span className="brand-icon"><Droplet size={24} fill="currentColor"/></span>salud<span className="brand-number">100</span><span className="brand-dot">.</span></a><div className="sidebar-caption">TU ESPACIO DE BIENESTAR</div>
       <nav aria-label="Navegación principal">{([{id:'home',label:'Mi resumen',icon:LayoutDashboard},{id:'history',label:'Mis mediciones',icon:History},{id:'settings',label:'Ajustes',icon:Settings2}] as const).map(item=><button key={item.id} className={'nav-item '+(page===item.id?'active':'')} aria-current={page===item.id?'page':undefined} onClick={()=>navigate(item.id)}><item.icon size={20}/><span>{item.label}</span>{page===item.id&&<span className="nav-dot"/>}</button>)}</nav>
@@ -100,4 +102,4 @@ function Trend({readings,unit}:{readings:Reading[];unit:Unit}) {if(readings.leng
 
 function Modal({title,onClose,children}:{title:string;onClose:()=>void;children:React.ReactNode}) {const ref=useRef<HTMLDialogElement>(null);useEffect(()=>{ref.current?.showModal();const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous}},[]);return <dialog ref={ref} className="modal" aria-labelledby="modal-title" onCancel={e=>{e.preventDefault();onClose()}}><div className="modal-heading"><h2 id="modal-title">{title}</h2><Button variant="ghost" size="icon" aria-label="Cerrar ventana" onClick={onClose}><X size={20}/></Button></div>{children}</dialog>}
 
-function AuthScreen(){const [email,setEmail]=useState('');const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');async function submit(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{const{error}=await supabase!.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin}});setMessage(error?'No pudimos enviar el enlace. Revisa tu correo e intenta de nuevo.':'Revisa tu correo y abre el enlace para entrar a tu espacio.')}catch{setMessage('No hay conexión. Intenta de nuevo.')}finally{setBusy(false)}}return <div className="auth-screen"><div className="auth-art"><span className="brand-icon"><Droplet size={35} fill="currentColor"/></span><h1>Tu glucosa,<br/>a tu ritmo.</h1><p>Un pequeño hábito.<br/>Más tranquilidad todos los días.</p><Heart size={140} strokeWidth={.7}/></div><section className="auth-form"><div className="eyebrow"><Sparkles size={16}/> TU ESPACIO PERSONAL</div><h2>Qué bueno tenerte aquí.</h2><p>Entra con un enlace seguro enviado a tu correo.</p><form onSubmit={submit}><label>Correo electrónico<input type="email" required autoComplete="email" placeholder="tu@correo.com" value={email} onChange={e=>setEmail(e.target.value)}/></label><Button disabled={busy} type="submit">{busy?'Enviando…':'Recibir enlace de acceso'}<ArrowRight size={18}/></Button></form>{message&&<p role="status" className="auth-message">{message}</p>}<small><ShieldCheck size={15}/> Tus mediciones, en tu cuenta personal.</small></section></div>}
+function AuthScreen({initialError}: {initialError: string}){const [email,setEmail]=useState('');const [busy,setBusy]=useState(false);const [message,setMessage]=useState(initialError);useEffect(()=>{if(initialError)setMessage(initialError)},[initialError]);async function submit(e:FormEvent){e.preventDefault();setBusy(true);setMessage('');try{const{error}=await supabase!.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin}});setMessage(error?authErrorMessage(error):'Revisa tu correo y abre el enlace para entrar a tu espacio.')}catch{setMessage('No hay conexión. Intenta de nuevo.')}finally{setBusy(false)}}return <div className="auth-screen"><div className="auth-art"><span className="brand-icon"><Droplet size={35} fill="currentColor"/></span><h1>Tu glucosa,<br/>a tu ritmo.</h1><p>Un pequeño hábito.<br/>Más tranquilidad todos los días.</p><Heart size={140} strokeWidth={.7}/></div><section className="auth-form"><div className="eyebrow"><Sparkles size={16}/> TU ESPACIO PERSONAL</div><h2>Qué bueno tenerte aquí.</h2><p>Entra con un enlace seguro enviado a tu correo.</p><form onSubmit={submit}><label>Correo electrónico<input type="email" required autoComplete="email" placeholder="tu@correo.com" value={email} onChange={e=>setEmail(e.target.value)}/></label><Button disabled={busy} type="submit">{busy?'Enviando…':'Recibir enlace de acceso'}<ArrowRight size={18}/></Button></form>{message&&<p role="status" className="auth-message">{message}</p>}<small><ShieldCheck size={15}/> Tus mediciones, en tu cuenta personal.</small></section></div>}
