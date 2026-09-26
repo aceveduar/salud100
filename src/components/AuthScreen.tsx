@@ -42,7 +42,7 @@ export function AuthScreen({ initialError }: { initialError: string }) {
   }
 
   return <div className="auth-screen">
-    <div className="auth-art"><span className="brand-icon"><Droplet size={35} fill="currentColor" /></span><h1>Tu glucosa,<br />a tu ritmo.</h1><p>Un pequeño hábito.<br />Más tranquilidad todos los días.</p><Heart size={140} strokeWidth={.7} /></div>
+    <div className="auth-art"><span className="brand-icon"><Droplet size={35} fill="currentColor" /></span><h1>Tu salud,<br />a tu ritmo.</h1><p>Un pequeño hábito.<br />Más tranquilidad todos los días.</p><Heart size={140} strokeWidth={.7} /></div>
     <section className="auth-form">
       <div className="eyebrow"><Sparkles size={16} /> TU ESPACIO PERSONAL</div>
       <h2>Qué bueno tenerte aquí.</h2>

@@ -1,6 +1,6 @@
 # Salud100
 
-Registro de glucosa en español, pensado para el celular. React + TypeScript + Vite + Tailwind CSS, botón basado en shadcn/ui, Supabase y PWA.
+Registro de glucosa y presión arterial en español, pensado para el celular. React + TypeScript + Vite + Tailwind CSS, botón basado en shadcn/ui, Supabase y PWA.
 
 ## Ejecutar
 
@@ -20,6 +20,8 @@ npm.cmd run preview
 
 ## Funciones
 
+- Selector de glucosa o presión arterial (sistólica/diastólica en mmHg), con resumen y gráfica de ambas presiones.
+
 - Captura con fecha/hora automáticas al guardar o fecha/hora personalizada.
 - Ayuno: sí, no o sin indicar. Notas opcionales.
 - Historial, filtros, edición, eliminación con confirmación y CSV compatible con Excel.
@@ -34,7 +36,7 @@ Sin variables de Supabase, guarda en localStorage del navegador actual. No hay d
 ## Conectar Supabase
 
 1. Crea un proyecto Supabase.
-2. Ejecuta `supabase/migrations/001_readings.sql` en el editor SQL del proyecto. Activa RLS y restringe todas las operaciones al dueño del registro.
+2. Ejecuta `supabase/migrations/001_readings.sql` y después `supabase/migrations/002_blood_pressure.sql` en el editor SQL del proyecto. Activa RLS y restringe todas las operaciones al dueño del registro.
 3. Copia `.env.example` a `.env.local` y completa la URL del proyecto y su clave pública/publishable. Nunca uses una clave `service_role` en el frontend.
 4. En Authentication → URL Configuration, configura Site URL y las direcciones permitidas de redirección (por ejemplo `http://localhost:5173` y la URL HTTPS publicada).
 5. Activa el proveedor Email. El acceso principal usa correo y contraseña; el enlace por correo es opcional y requiere un servicio de correo disponible.
@@ -75,4 +77,10 @@ npm.cmd test
 
 Las pruebas de Playwright usan Microsoft Edge instalado y cubren escritorio y tamaño móvil: crear, recargar, editar, filtrar, exportar, eliminar, validación, captura local sin red, unidades y protección frente a almacenamiento inválido.
 
+Si tienes Supabase configurado en `.env.local`, ejecuta `node scripts/build-local.mjs` antes de `npm.cmd test` para preparar la versión local que necesitan las pruebas. Este comando no modifica tus credenciales. Antes de publicar, vuelve a ejecutar `npm.cmd run build` para usar la configuración de Supabase.
+
 Para regenerar iconos: `node scripts/icons.mjs`.
+
+### Actualizar una cuenta existente
+
+Antes de desplegar esta versión, ejecuta solo `supabase/migrations/002_blood_pressure.sql` en el editor SQL de Supabase si ya aplicaste la primera migración. Agrega la diastólica y permite mmHg; conserva las mediciones de glucosa y las políticas de acceso. El campo `value` conserva la glucosa o almacena la sistólica según la unidad. Sin esta migración, la nueva app no puede consultar ni guardar en Supabase. Los registros locales anteriores siguen funcionando sin migración manual.

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 test('registro, persistencia, edición, filtros, exportación y eliminación',async({page})=>{
   await page.goto('/')
-  await expect(page.getByRole('heading',{name:'Tu glucosa, a tu ritmo.'})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'Tu salud, a tu ritmo.'})).toBeVisible()
   await page.getByLabel('¿Qué valor marcó tu glucómetro?').fill('105')
   await page.getByRole('button',{name:'Sí, en ayunas',exact:true}).click()
   await page.getByRole('button',{name:'Guardar medición',exact:true}).click()
@@ -57,10 +57,10 @@ test('PWA recarga sin red después de instalar el service worker',async({page,co
   await page.goto('/')
   await page.evaluate(async()=>{await navigator.serviceWorker.ready})
   await page.reload()
-  await expect(page.getByRole('heading',{name:'Tu glucosa, a tu ritmo.'})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'Tu salud, a tu ritmo.'})).toBeVisible()
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading',{name:'Tu glucosa, a tu ritmo.'})).toBeVisible()
+  await expect(page.getByRole('heading',{name:'Tu salud, a tu ritmo.'})).toBeVisible()
   await page.getByLabel('¿Qué valor marcó tu glucómetro?').fill('98')
   await page.getByRole('button',{name:'Guardar medición',exact:true}).click()
   await expect(page.getByRole('status')).toContainText('Medición guardada')
