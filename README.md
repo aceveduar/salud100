@@ -1,6 +1,6 @@
 # Salud100
 
-Registro de glucosa y presión arterial en español, pensado para el celular. React + TypeScript + Vite + Tailwind CSS, botón basado en shadcn/ui, Supabase y PWA.
+Registro de glucosa, presión arterial y peso/composición corporal (báscula inteligente) en español, pensado para el celular. React + TypeScript + Vite + Tailwind CSS, botón basado en shadcn/ui, Supabase y PWA.
 
 ## Ejecutar
 
@@ -20,7 +20,10 @@ npm.cmd run preview
 
 ## Funciones
 
-- Selector de glucosa o presión arterial (sistólica/diastólica en mmHg), con resumen y gráfica de ambas presiones.
+- Tarjetas con lo último de glucosa, presión arterial y peso; al tocarlas se elige qué registrar.
+- Presión arterial (sistólica/diastólica en mmHg), con resumen y gráfica de ambas presiones.
+- Peso y composición: peso (obligatorio), IMC, grasa, agua y músculo (%) y masa ósea (kg), en el orden de la báscula. Lo que la báscula llama "densidad ósea" se guarda como masa ósea en kg. Gráfica por dato y cambio respecto al pesaje anterior.
+- Mis datos (Ajustes): nombre, fecha de nacimiento (la edad se calcula), sexo y estatura. Con la estatura, el IMC vacío se calcula y se avisa si el de la báscula no coincide.
 
 - Captura con fecha/hora automáticas al guardar o fecha/hora personalizada.
 - Ayuno: sí, no o sin indicar. Notas opcionales.
@@ -36,7 +39,7 @@ Sin variables de Supabase, guarda en localStorage del navegador actual. No hay d
 ## Conectar Supabase
 
 1. Crea un proyecto Supabase.
-2. Ejecuta `supabase/migrations/001_readings.sql` y después `supabase/migrations/002_blood_pressure.sql` en el editor SQL del proyecto. Activa RLS y restringe todas las operaciones al dueño del registro.
+2. Ejecuta `supabase/migrations/001_readings.sql`, `002_blood_pressure.sql` y `003_body_profile.sql`, en ese orden, en el editor SQL del proyecto. Activa RLS y restringe todas las operaciones al dueño del registro.
 3. Copia `.env.example` a `.env.local` y completa la URL del proyecto y su clave pública/publishable. Nunca uses una clave `service_role` en el frontend.
 4. En Authentication → URL Configuration, configura Site URL y las direcciones permitidas de redirección (por ejemplo `http://localhost:5173` y la URL HTTPS publicada).
 5. Activa el proveedor Email. El acceso principal usa correo y contraseña; el enlace por correo es opcional y requiere un servicio de correo disponible.
@@ -84,3 +87,7 @@ Para regenerar iconos: `node scripts/icons.mjs`.
 ### Actualizar una cuenta existente
 
 Antes de desplegar esta versión, ejecuta solo `supabase/migrations/002_blood_pressure.sql` en el editor SQL de Supabase si ya aplicaste la primera migración. Agrega la diastólica y permite mmHg; conserva las mediciones de glucosa y las políticas de acceso. El campo `value` conserva la glucosa o almacena la sistólica según la unidad. Sin esta migración, la nueva app no puede consultar ni guardar en Supabase. Los registros locales anteriores siguen funcionando sin migración manual.
+
+### Agregar peso, composición corporal y perfil
+
+Ejecuta solo `supabase/migrations/003_body_profile.sql` en el editor SQL de Supabase. Crea las tablas `profiles` y `body_measurements` con RLS por dueño y no modifica `readings`. Si la app se publica antes de aplicar la migración, glucosa y presión siguen funcionando y la sección de peso muestra un aviso.

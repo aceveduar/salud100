@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import type { Body } from './body'
 export type Unit = 'mg/dL' | 'mmol/L'
 export type Reading = { id: string; value: number; unit: Unit | 'mmHg'; diastolic?: number | null; measured_at: string; fasting: boolean | null; note: string }
 const url = import.meta.env.VITE_SUPABASE_URL
@@ -37,9 +38,13 @@ export async function deleteReading(id: string) {
 }
 export function localDateInput(date = new Date()) { return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16) }
 export function fastingLabel(value: boolean | null) { return value === true ? 'En ayunas' : value === false ? 'Sin ayuno' : 'Sin indicar' }
-export function exportCsv(readings: Reading[]) {
+export function exportCsv(readings: Reading[], body: Body[] = []) {
   const escape = (value: string) => '"' + (/^[=+@\-\t\r]/.test(value) ? "'" + value : value).replaceAll('"','""') + '"'
-  const rows = [['Fecha y hora local','Fecha y hora UTC','Tipo','Glucosa','Sistólica','Diastólica','Unidad','Ayuno','Nota'],...readings.map(r=>[new Date(r.measured_at).toLocaleString('es-MX'),r.measured_at,r.unit==='mmHg'?'Presión arterial':'Glucosa',r.unit==='mmHg'?'':String(r.value),r.unit==='mmHg'?String(r.value):'',r.unit==='mmHg'?String(r.diastolic):'',r.unit,r.unit==='mmHg'?'':fastingLabel(r.fasting),r.note])]
+  const optional = (value: number | null) => value == null ? '' : String(value)
+  const entries = [...readings, ...body].sort((a,b)=>Date.parse(b.measured_at)-Date.parse(a.measured_at))
+  const rows = [['Fecha y hora local','Fecha y hora UTC','Tipo','Glucosa','Sistólica','Diastólica','Unidad','Ayuno','Peso (kg)','IMC','Grasa (%)','Agua (%)','Músculo (%)','Masa ósea (kg)','Nota'],...entries.map(r=>'weight_kg' in r
+    ? [new Date(r.measured_at).toLocaleString('es-MX'),r.measured_at,'Peso y composición','','','','kg','',String(r.weight_kg),optional(r.bmi),optional(r.body_fat_pct),optional(r.water_pct),optional(r.muscle_pct),optional(r.bone_mass_kg),r.note]
+    : [new Date(r.measured_at).toLocaleString('es-MX'),r.measured_at,r.unit==='mmHg'?'Presión arterial':'Glucosa',r.unit==='mmHg'?'':String(r.value),r.unit==='mmHg'?String(r.value):'',r.unit==='mmHg'?String(r.diastolic):'',r.unit,r.unit==='mmHg'?'':fastingLabel(r.fasting),'','','','','','',r.note])]
   const blob = new Blob(['\uFEFF'+rows.map(row=>row.map(escape).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8;'})
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=`salud100-${localDateInput().slice(0,10)}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000)
 }
