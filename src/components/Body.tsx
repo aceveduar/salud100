@@ -1,13 +1,13 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { ArrowRight, ShieldCheck, UserRound, Weight } from 'lucide-react'
+import { ArrowRight, ShieldCheck, Weight } from 'lucide-react'
 import { Button } from './ui/button'
 import { TimeAndNote, measuredAt } from './FormParts'
 import { localDateInput, supabase } from '../lib/data'
-import { ageFrom, bmiFrom, bodyFields, saveBody, saveProfile, type Body, type BodyField, type Profile } from '../lib/body'
+import { bmiFrom, bodyFields, saveBody, type Body, type BodyField, type Profile } from '../lib/body'
 
 const parse = (text: string) => text.trim() ? Number(text.replace(',', '.')) : null
 
-export function BodyForm({profile,entry,onSaved,disabled=false}:{profile:Profile;entry?:Body;onSaved:(b:Body)=>void;disabled?:boolean}) {
+export function BodyForm({profile,entry,existing=[],onSaved,disabled=false}:{profile:Profile;entry?:Body;existing?:Body[];onSaved:(b:Body,queued:boolean)=>void;disabled?:boolean}) {
   const initial=()=>Object.fromEntries(bodyFields.map(f=>[f.key,entry?.[f.key]==null?'':String(entry[f.key])])) as Record<BodyField,string>
   const [values,setValues]=useState(initial)
   const [note,setNote]=useState(entry?.note||'')
@@ -15,6 +15,7 @@ export function BodyForm({profile,entry,onSaved,disabled=false}:{profile:Profile
   const [date,setDate]=useState(localDateInput(entry?new Date(entry.measured_at):new Date()))
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
+  const [duplicate,setDuplicate]=useState('')
   const weightRef=useRef<HTMLInputElement>(null)
   const inFlight=useRef(false)
   const id=(name:string)=>(entry?'edit-':'')+name
@@ -31,47 +32,21 @@ export function BodyForm({profile,entry,onSaved,disabled=false}:{profile:Profile
     }
     const measured=measuredAt(customTime,date)
     if(!measured){setError('Elige una fecha y hora válida que no esté en el futuro.');return}
+    const same=existing.find(b=>b.id!==entry?.id&&b.weight_kg===parsed.weight_kg&&Math.abs(Date.parse(b.measured_at)-measured.getTime())<20*60000)
+    if(same&&!duplicate){setDuplicate(`Ya hay un pesaje de ${same.weight_kg} kg a la misma hora. Revisa el historial o vuelve a pulsar para guardarlo de todos modos.`);return}
     const item:Body={...parsed,weight_kg:parsed.weight_kg!,bmi:parsed.bmi??bmiFrom(parsed.weight_kg!,profile.height_cm),id:entry?.id||crypto.randomUUID(),note:note.trim(),measured_at:measured.toISOString()}
     inFlight.current=true;setBusy(true)
-    try{await saveBody(item);onSaved(item);if(!entry){setValues(Object.fromEntries(bodyFields.map(f=>[f.key,''])) as Record<BodyField,string>);setNote('');setCustomTime(false);setDate(localDateInput())}}
+    try{const queued=await saveBody(item);setDuplicate('');onSaved(item,queued);if(!entry){setValues(Object.fromEntries(bodyFields.map(f=>[f.key,''])) as Record<BodyField,string>);setNote('');setCustomTime(false);setDate(localDateInput())}}
     catch(e){setError(e instanceof Error?e.message:'No pudimos guardar. Revisa el espacio disponible en tu navegador.')}
     finally{setBusy(false);inFlight.current=false}
   }
-  const set=(key:BodyField)=>(e:React.ChangeEvent<HTMLInputElement>)=>setValues(v=>({...v,[key]:e.target.value}))
+  const set=(key:BodyField)=>(e:React.ChangeEvent<HTMLInputElement>)=>{setDuplicate('');setValues(v=>({...v,[key]:e.target.value}))}
   return <form onSubmit={submit} className="reading-form">
     <label className="field-label" htmlFor={id('weight')}>¿Cuánto marcó tu báscula?</label>
     <div className={'glucose-input '+(values.weight_kg?'has-value':'')}><Weight size={25}/><input ref={weightRef} id={id('weight')} type="text" inputMode="decimal" autoComplete="off" placeholder="00.0" value={values.weight_kg} onChange={set('weight_kg')} disabled={busy||disabled}/><span>kg</span></div>
     <div className="body-grid">{bodyFields.slice(1).map(f=><label key={f.key} className="body-field"><span>{f.label}</span><span className="body-input"><input aria-label={f.label} type="text" inputMode="decimal" autoComplete="off" placeholder="—" value={values[f.key]} onChange={set(f.key)} disabled={busy||disabled}/><small aria-hidden="true">{f.unit}</small></span></label>)}</div>
     <p className="input-hint body-hint">Copia los números tal como aparecen en tu báscula; solo el peso es obligatorio. Lo que la báscula llama “densidad ósea” es la masa ósea en kg.{computed!=null&&(scaleBmi==null?` Si dejas el IMC vacío, lo calculamos con tu estatura (${profile.height_cm} cm): ${computed}.`:Math.abs(scaleBmi-computed)>0.5?` Con tu estatura registrada (${profile.height_cm} cm) el IMC sería ${computed}; revisa la estatura configurada en la báscula o en Ajustes.`:'')}</p>
     <TimeAndNote editing={!!entry} customTime={customTime} setCustomTime={setCustomTime} date={date} setDate={setDate} note={note} setNote={setNote} busy={busy}/>
-    {error&&<p className="form-error" role="alert">{error}</p>}<Button type="submit" className="save-button" disabled={busy||disabled}>{busy?'Guardando…':entry?'Guardar cambios':'Guardar pesaje'}{!busy&&<ArrowRight size={19}/>}</Button><div className="save-caption"><ShieldCheck size={13}/>{supabase?'En tu cuenta personal':'Guardado en este dispositivo'}</div>
+    {error&&<p className="form-error" role="alert">{error}</p>}{duplicate&&!error&&<p className="form-warning" role="alert">{duplicate}</p>}<Button type="submit" className="save-button" disabled={busy||disabled}>{busy?'Guardando…':duplicate?'Guardar de todos modos':entry?'Guardar cambios':'Guardar pesaje'}{!busy&&<ArrowRight size={19}/>}</Button><div className="save-caption"><ShieldCheck size={13}/>{supabase?'En tu cuenta personal':'Guardado en este dispositivo'}</div>
   </form>
-}
-
-export function ProfileCard({profile,onSaved,disabled=false}:{profile:Profile;onSaved:(p:Profile)=>void;disabled?:boolean}) {
-  const [name,setName]=useState(profile.display_name)
-  const [birth,setBirth]=useState(profile.birth_date||'')
-  const [sex,setSex]=useState(profile.sex||'')
-  const [height,setHeight]=useState(profile.height_cm==null?'':String(profile.height_cm))
-  const [busy,setBusy]=useState(false)
-  const [error,setError]=useState('')
-  const today=localDateInput().slice(0,10)
-  const age=ageFrom(birth||null)
-  async function submit(e:FormEvent) {
-    e.preventDefault();setError('')
-    const h=parse(height)
-    if(h!=null&&!(Number.isFinite(h)&&h>50&&h<260)){setError('Escribe tu estatura en centímetros, por ejemplo 152.');return}
-    if(birth&&(birth<'1900-01-01'||birth>today)){setError('Elige una fecha de nacimiento válida.');return}
-    const next:Profile={display_name:name.trim().slice(0,80),birth_date:birth||null,sex:sex==='F'||sex==='M'?sex:null,height_cm:h}
-    setBusy(true)
-    try{await saveProfile(next);onSaved(next)}catch(e){setError(e instanceof Error?e.message:'No pudimos guardar tus datos.')}finally{setBusy(false)}
-  }
-  return <section className="card settings-card profile-card"><span className="heading-icon"><UserRound size={22}/></span><h2>Mis datos</h2><p>Los mismos datos que configuraste en tu báscula. Aquí sirven para mostrar tu edad y calcular tu IMC.</p>
-    <form className="profile-form" onSubmit={submit}><fieldset disabled={busy||disabled}>
-      <label className="wide">Nombre<input type="text" autoComplete="name" maxLength={80} value={name} onChange={e=>setName(e.target.value)}/></label>
-      <label>Fecha de nacimiento<input type="date" min="1900-01-01" max={today} value={birth} onChange={e=>setBirth(e.target.value)}/>{age!=null&&age>=0&&<small>{age} años</small>}</label>
-      <label>Sexo<select value={sex} onChange={e=>setSex(e.target.value)}><option value="">Sin indicar</option><option value="F">Mujer</option><option value="M">Hombre</option></select></label>
-      <label>Estatura (cm)<input type="text" inputMode="decimal" autoComplete="off" placeholder="152" value={height} onChange={e=>setHeight(e.target.value)}/></label>
-    </fieldset>{error&&<p className="form-error" role="alert">{error}</p>}<Button type="submit" variant="outline" disabled={busy||disabled}>{busy?'Guardando…':'Guardar mis datos'}</Button></form>
-  </section>
 }

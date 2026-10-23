@@ -9,6 +9,7 @@ export function AuthScreen({ initialError }: { initialError: string }) {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [useLink, setUseLink] = useState(false)
+  const [reset, setReset] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState(initialError)
   const submitting = useRef(false)
@@ -21,7 +22,10 @@ export function AuthScreen({ initialError }: { initialError: string }) {
     setBusy(true)
     setMessage('')
     try {
-      if (useLink) {
+      if (reset) {
+        const { error } = await supabase!.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin })
+        setMessage(error ? authErrorMessage(error) : 'Si el correo tiene cuenta, te llegará un enlace para crear una contraseña nueva. Ábrelo en este mismo dispositivo.')
+      } else if (useLink) {
         const { error } = await supabase!.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } })
         setMessage(error ? authErrorMessage(error) : 'Revisa tu correo y abre el enlace para entrar a tu espacio.')
       } else {
@@ -46,21 +50,22 @@ export function AuthScreen({ initialError }: { initialError: string }) {
     <section className="auth-form">
       <div className="eyebrow"><Sparkles size={16} /> TU ESPACIO PERSONAL</div>
       <h2>Qué bueno tenerte aquí.</h2>
-      <p>{useLink ? 'Recibe un enlace de acceso en tu correo.' : 'Entra con tu correo y contraseña.'}</p>
+      <p>{reset ? 'Te enviaremos un enlace para crear una contraseña nueva.' : useLink ? 'Recibe un enlace de acceso en tu correo.' : 'Entra con tu correo y contraseña.'}</p>
       <form onSubmit={submit}>
         <label htmlFor="login-email">Correo electrónico</label>
         <input id="login-email" type="email" required autoComplete="username" placeholder="tu@correo.com" value={email} onChange={e => setEmail(e.target.value)} disabled={busy} />
-        {!useLink && <div className="password-field">
+        {!useLink && !reset && <div className="password-field">
           <label htmlFor="login-password">Contraseña</label>
           <div className="password-control">
             <input id="login-password" type={showPassword ? 'text' : 'password'} required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} disabled={busy} />
             <button type="button" aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button>
           </div>
         </div>}
-        <Button disabled={busy} type="submit">{busy ? (useLink ? 'Enviando…' : 'Entrando…') : (useLink ? 'Recibir enlace de acceso' : 'Iniciar sesión')}<ArrowRight size={18} /></Button>
+        <Button disabled={busy} type="submit">{busy ? (useLink || reset ? 'Enviando…' : 'Entrando…') : (reset ? 'Enviar enlace' : useLink ? 'Recibir enlace de acceso' : 'Iniciar sesión')}<ArrowRight size={18} /></Button>
       </form>
       {message && <p role="status" aria-live="polite" className="auth-message">{message}</p>}
-      <Button variant="ghost" disabled={busy} onClick={() => { setUseLink(!useLink); setPassword(''); setShowPassword(false); setMessage('') }}>{useLink ? 'Usar mi contraseña' : 'Prefiero un enlace por correo'}</Button>
+      {!reset && <Button variant="ghost" disabled={busy} onClick={() => { setUseLink(!useLink); setPassword(''); setShowPassword(false); setMessage('') }}>{useLink ? 'Usar mi contraseña' : 'Prefiero un enlace por correo'}</Button>}
+      <Button variant="ghost" disabled={busy} onClick={() => { setReset(!reset); setUseLink(false); setPassword(''); setMessage('') }}>{reset ? 'Volver a iniciar sesión' : '¿Olvidaste tu contraseña?'}</Button>
       <small><ShieldCheck size={15} /> Tus mediciones, en tu cuenta personal.</small>
     </section>
   </div>

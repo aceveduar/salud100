@@ -26,7 +26,15 @@ npm.cmd run preview
 - Mis datos (Ajustes): nombre, fecha de nacimiento (la edad se calcula), sexo y estatura. Con la estatura, el IMC vacío se calcula y se avisa si el de la báscula no coincide.
 
 - Captura con fecha/hora automáticas al guardar o fecha/hora personalizada.
-- Ayuno: sí, no o sin indicar. Notas opcionales.
+- Momento de la glucosa: en ayunas, antes de comer, 2 h después de comer, antes de dormir, otro o sin indicar. Pulso opcional en la presión. Notas opcionales.
+- Aviso antes de guardar un registro idéntico a otro de la misma hora (±20 min).
+- Mis metas (Ajustes): rango de glucosa, presión máxima y meta de peso indicados por el médico; se dibujan en las gráficas como franja o línea ámbar, sin interpretación.
+- Resumen para el médico: periodo de 30/90 días o todo, con promedios por momento, presión y pulso, cambios de composición corporal, gráficas y tabla; se imprime o guarda como PDF desde el navegador.
+- Compartir con la familia (solo con Supabase): el dueño autoriza un correo y esa cuenta ve sus registros en modo solo lectura.
+- Recuperar contraseña desde la pantalla de acceso y cambiarla en Ajustes.
+- Sin conexión con cuenta: las mediciones y pesajes se guardan en el teléfono y se suben solos al volver la señal (aviso de pendientes). Si la cuenta no responde, se muestra la última copia guardada en el teléfono. No se puede cerrar sesión con registros pendientes.
+- En el resumen médico, "Dentro de la meta": porcentaje de glucosas en el rango indicado (por momento) y de presiones hasta la meta.
+- Letra mínima de 11–13 px en toda la app y gráficas dibujadas al ancho real de la pantalla.
 - Historial, filtros, edición, eliminación con confirmación y CSV compatible con Excel.
 - Unidades mg/dL y mmol/L; cada registro conserva su unidad. Las gráficas y promedios solo usan la unidad elegida, sin mezclar valores.
 - Gráfica de 7 o 30 días, sin clasificaciones clínicas ni umbrales de diagnóstico.
@@ -39,7 +47,7 @@ Sin variables de Supabase, guarda en localStorage del navegador actual. No hay d
 ## Conectar Supabase
 
 1. Crea un proyecto Supabase.
-2. Ejecuta `supabase/migrations/001_readings.sql`, `002_blood_pressure.sql` y `003_body_profile.sql`, en ese orden, en el editor SQL del proyecto. Activa RLS y restringe todas las operaciones al dueño del registro.
+2. Ejecuta `supabase/migrations/001_readings.sql`, `002_blood_pressure.sql`, `003_body_profile.sql` y `004_pulse_moments_goals_sharing.sql`, en ese orden, en el editor SQL del proyecto. Activa RLS y restringe todas las operaciones al dueño del registro.
 3. Copia `.env.example` a `.env.local` y completa la URL del proyecto y su clave pública/publishable. Nunca uses una clave `service_role` en el frontend.
 4. En Authentication → URL Configuration, configura Site URL y las direcciones permitidas de redirección (por ejemplo `http://localhost:5173` y la URL HTTPS publicada).
 5. Activa el proveedor Email. El acceso principal usa correo y contraseña; el enlace por correo es opcional y requiere un servicio de correo disponible.
@@ -52,6 +60,8 @@ Con Supabase configurado, el inicio de sesión es obligatorio y las operaciones 
 En Supabase → Authentication → Users, busca primero si el correo ya existe. Para una cuenta nueva, selecciona Add user → Create new user, introduce el correo y una contraseña y marca Auto Confirm User después de verificar que el correo pertenece a la persona. No uses Send invitation para este flujo. Una cuenta existente necesita tener contraseña y estar confirmada; no borres cuentas que tengan mediciones para recrearlas.
 
 Abre la app y pulsa Iniciar sesión con esas credenciales. El acceso por contraseña no envía correos. Las contraseñas se entregan directamente a Supabase por HTTPS y no se guardan en localStorage; Supabase conserva la sesión para las siguientes visitas. El enlace por correo sigue disponible como alternativa. Esta versión no incluye recuperación de contraseña en la interfaz.
+
+Prueba de cuenta (sin conexión, sincronización, copia local, vista familiar y compartir) con Supabase simulado: compila con `npm.cmd run build`, ejecuta la vista previa en el puerto 4173 y corre `node scripts/check-offline-sync.mjs`.
 
 Prueba del formulario con respuestas simuladas de Supabase: después de compilar y ejecutar la vista previa en el puerto 4173, ejecuta `node scripts/check-password-login.mjs`. Comprueba credenciales incorrectas, cuenta sin confirmar, límites de intentos, acceso, recarga, cierre de sesión y ausencia de solicitudes de correo, en escritorio y móvil.
 
@@ -91,3 +101,11 @@ Antes de desplegar esta versión, ejecuta solo `supabase/migrations/002_blood_pr
 ### Agregar peso, composición corporal y perfil
 
 Ejecuta solo `supabase/migrations/003_body_profile.sql` en el editor SQL de Supabase. Crea las tablas `profiles` y `body_measurements` con RLS por dueño y no modifica `readings`. Si la app se publica antes de aplicar la migración, glucosa y presión siguen funcionando y la sección de peso muestra un aviso.
+
+### Pulso, momentos, metas y familia
+
+Ejecuta `supabase/migrations/004_pulse_moments_goals_sharing.sql` **antes** de publicar esta versión: la app consulta las columnas nuevas y, sin ellas, no puede cargar glucosa ni presión. La migración convierte el ayuno anterior en momento (sí → En ayunas, no → Otro momento) y conserva todas las mediciones.
+
+Compartir usa el correo de la sesión del familiar. Mantén la confirmación de correo activa (o crea las cuentas tú con Auto Confirm) para que nadie pueda registrarse con un correo ajeno.
+
+Recuperar la contraseña envía un correo de Supabase: requiere SMTP configurado para destinatarios fuera del equipo del proyecto y que la URL de la app esté en Redirect URLs. Sin correo, un administrador puede asignar una contraseña nueva en Authentication → Users; la persona puede cambiarla después en Ajustes.

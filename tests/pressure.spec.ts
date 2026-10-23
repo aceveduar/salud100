@@ -6,7 +6,7 @@ test('presión: validación, persistencia, resumen, edición, CSV y eliminación
   await page.getByRole('button', { name: 'Guardar medición', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('Medición guardada')
   await page.getByRole('button', { name: /^Presión arterial/ }).click()
-  await expect(page.getByText('¿Estabas en ayunas?')).toHaveCount(0)
+  await expect(page.getByText('¿En qué momento?')).toHaveCount(0)
   await context.setOffline(true)
   await page.getByLabel('Sistólica (mmHg)', { exact: true }).fill('120')
   await page.getByRole('button', { name: 'Guardar medición', exact: true }).click()
